@@ -1,3 +1,7 @@
+//-----Mauricio Hiraaki Ishida-----
+//-----G++ nome_do_arquivo.cpp------
+//-----./a.out -R nome_do_aquivo_entrada-----
+//-----./a.out -W nome_do_arquivo_saida-----
 #include <iostream>
 #include <fstream>
 
@@ -8,7 +12,7 @@ typedef struct abit{
     unsigned X:1;
 }abit;
 
-
+//---Copia de Y->X---
 void equals(abit *X,abit *Y){
     for(int i=0;i<16;i++)
         X[i].X=Y[i].X;
@@ -23,7 +27,8 @@ void printbyte(abit *byte,int n){
     cout<<endl;
 }
 
-
+//---corta char---
+//---shifts a direita---
 void cutchar(char X, abit *s){
     for(int i=7;i>=0;i--){
         s[i].X=X;
@@ -31,11 +36,14 @@ void cutchar(char X, abit *s){
     }
 }
 
+//---converte para "char"---
+//---shifts a esquerda---
 char tochar(abit *s){
     char result;
-
     for(int i=0;i<8;i++){
         //result=result|s[i].X;
+
+	//garantir 0 para result
 
         result=result<<1;
         if(i==0)
@@ -55,7 +63,7 @@ char tochar(abit *s){
 }
 
 
-
+//---Separa 1 array de 16bits para 2 de 8 bits---
 void split(abit *bits2, abit *half1, abit *half2){
     for(int i=0;i<16;i++){
         if(i<8){
@@ -66,6 +74,7 @@ void split(abit *bits2, abit *half1, abit *half2){
     }
 }
 
+//---Junta dois bytes em um array de 16bits
 void joinbytes(abit *X,abit *Y,abit *Z){
     for(int i=0;i<16;i++){
         if(i<8){
@@ -76,6 +85,7 @@ void joinbytes(abit *X,abit *Y,abit *Z){
     }
 }
 
+//---Faz o calculo do bit G---
 void calcG(abit *bytes){
     bytes[3].X=0;
     for(int i=4;i<16;i++){
@@ -84,6 +94,8 @@ void calcG(abit *bytes){
 
 }
 
+//---entra array 8bits sai um array 16bits
+//---com o hamming feito e o bit G calculado---
 void intohaming(abit *in,abit *out){
     for(int i=0;i<4;i++){
         out[i].X=out[i].X^out[i].X;
@@ -107,7 +119,7 @@ void intohaming(abit *in,abit *out){
 }
 
 
-
+//---Gera o arquivo out.hamming---
 void MakeHamingfile(string in,string out){
     streampos size;
     abit byte[8];
@@ -118,15 +130,19 @@ void MakeHamingfile(string in,string out){
     char *memblockOut;
     ifstream file (in, ios::in|ios::binary|ios::ate);
     ofstream fileout (out);
-    if (file.is_open()&&fileout.is_open())
-    {
+    if (file.is_open()&&fileout.is_open()){
+		//---cria vetores de memoria com os tamanhos necessarios---
+		//pega tamanho do arquivo
         size = file.tellg();
+		//vetor com o tamanho do arquivo
         memblock = new char [size];
+		//vetor com o dobro do tamanho
         memblockOut=new char [size*2];
         file.seekg (0, ios::beg);
         file.read (memblock, size);
         cout <<size<<"\n";
         int j=0;
+		//---Leitura byte a byte---
         for(int i=0;i<size;i++){
             cutchar(memblock[i],byte);
             //printbyte(byte,8);
@@ -159,6 +175,7 @@ void MakeHamingfile(string in,string out){
     else cout << "Unable to open file";
 }
 
+//---retira o byte original da array de 16bits---
 void takebyte(abit *X,abit *Y){
     Y[7]=X[13];
     Y[6]=X[11];
@@ -170,6 +187,7 @@ void takebyte(abit *X,abit *Y){
     Y[0]=X[4];
 }
 
+//---xor do c com c'
 char xorC(abit *X, abit *Y){
     abit out[8];
 //    out[7].X=0;
@@ -187,6 +205,8 @@ char xorC(abit *X, abit *Y){
 }
 
 
+//---recupera arquivo gerado pelo haming----
+//---out.haming gerado pelo MakeHamming---
 void MakeBfile(string in,string out){
     streampos size;
     abit bytes1[16];
@@ -201,8 +221,7 @@ void MakeBfile(string in,string out){
     char *memblockOut;
     ifstream file (in, ios::in|ios::binary|ios::ate);
     ofstream fileout (out);
-    if (file.is_open()&&fileout.is_open())
-    {
+    if (file.is_open()&&fileout.is_open()){
         size = file.tellg();
         memblock = new char [size];
         memblockOut=new char [size/2];
@@ -211,28 +230,38 @@ void MakeBfile(string in,string out){
         cout <<size<<"\n";
         int j=0;
         for(int i=0;i<size;i++){
+			//--pega o primeiro byte
             cutchar(memblock[i],byte1);
             printbyte(byte1,8);
             i++;
+			//--pega o segundo byte
             cutchar(memblock[i],byte2);
             printbyte(byte2,8);
+			//--junta os bytes
             joinbytes(byte1,byte2,bytes1);
             printbyte(bytes1,16);
+			//--pega byte original
             takebyte(bytes1,byte1);
             //printbyte(byte1,8);
+			//faz hamming com o G, mas é desconsiderado
             intohaming(byte1,bytes2);
             //printbyte(bytes2,16);
+			//---xorC gera um X que convertido para int gera o numero requerido
             char X=xorC(bytes1,bytes2);
             //cout<<(int)X<<endl;
+			//---se o xor dos cs é 0 então não há erros
             if(X==0){
                 memblockOut[j]=tochar(byte1);
             } else{
                 cout<<"ERRO ENCONTRADO!!"<<endl;
                 printbyte(bytes1,16);
                 equals(bytes2,bytes1);
+				//---tentativa de recuperação
                 if(bytes1[16-X].X==0){
+					//--recupera o bit flipado					
                     bytes2[16-X].X=1;
                     calcG(bytes2);
+					//calculo do novo G
                     printbyte(bytes2,16);
                     if((bytes1[3].X^bytes2[3].X)!=0){
                         cout<<"ERRO NAO CORRIGIDO!!"<<endl;
